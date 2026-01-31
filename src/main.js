@@ -1,5 +1,8 @@
 import { Application, Assets, Sprite } from "pixi.js";
 
+// const apiUrl = import.meta.env.VITE_API_URL;
+const wsUrl = import.meta.env.VITE_WS_URL;
+
 const getLastPathSegment = (url) => {
   const pathname = new URL(url).pathname;
   const parts = pathname.split("/");
@@ -48,7 +51,7 @@ const openWebSocket = (url) => {
   // Append the application canvas to the document body
   document.getElementById("pixi-container").appendChild(app.canvas);
 
-  openWebSocket("ws://" + window.location.host + "/games/ws/hearts/" + gameId);
+  openWebSocket(wsUrl + "/games/ws/hearts/" + gameId);
 
   // Load the card texture
   const cardTexture = await Assets.load("/assets/cards/SPADE-12-QUEEN.svg");
