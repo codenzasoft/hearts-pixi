@@ -1,5 +1,5 @@
 import { Application, Assets, Sprite } from "pixi.js";
-import { Card } from "./hearts.js";
+import { Card, GameState } from "./hearts.js";
 
 // const apiUrl = import.meta.env.VITE_API_URL;
 const wsUrl = import.meta.env.VITE_WS_URL;
@@ -21,12 +21,12 @@ const openWebSocket = (url, app) => {
 
   ws.onmessage = (event) => {
     // Update PixiJS scene based on the data
-    const gameState = JSON.parse(event.data);
+    const gameJson = JSON.parse(event.data);
+    const gameState = GameState.fromJson(gameJson);
     if (gameState.round.trick.cards) {
       app.stage.removeChildren(); // TODO: do we need to dispose anything?
       let x = 100;
-      gameState.round.trick.cards.forEach((c) => {
-        const card = new Card(c.rank, c.suit);
+      gameState.round.trick.cards.forEach((card) => {
         console.log(card.getSvgPath());
         card.getSprite().then((sprite) => {
           sprite.position.set(x, app.screen.height / 2);

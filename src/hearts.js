@@ -1,5 +1,72 @@
 import { Assets, Sprite } from "pixi.js";
 
+export class Player {
+  constructor(name, isBot) {
+    this.name = name;
+    this.isBot = isBot;
+  }
+}
+
+export class TrickState {
+  constructor(trickNumber, leader, cards, winner) {
+    this.trickNumner = trickNumber;
+    this.leader = leader;
+    this.cards = cards;
+    this.winner = winner;
+  }
+}
+
+export class RoundState {
+  constructor(roundNumber, passDirection, trick) {
+    this.roundNumner = roundNumber;
+    this.passDirection = passDirection;
+    this.trick = trick;
+  }
+}
+
+export class GameState {
+  constructor(id, players, over, round) {
+    this.id = id;
+    this.players = players;
+    this.over = over;
+    this.round = round;
+  }
+
+  static fromJson(jsonData) {
+    let trick = null;
+    if ("trick" in jsonData.round) {
+      let cards = [];
+      let jsonTrick = jsonData.round.trick;
+      jsonTrick.cards.forEach((jsonCard) => {
+        cards.push(new Card(jsonCard.rank, jsonCard.suit));
+      });
+      trick = new TrickState(
+        jsonTrick.number,
+        jsonTrick.leader,
+        cards,
+        jsonTrick.winner,
+      );
+    }
+    let jsonRound = jsonData.round;
+    let round = new RoundState(
+      jsonRound.number,
+      jsonRound.passDirection,
+      trick,
+    );
+    // this gets a little ugly...
+    let players = new Map();
+    players.set("KEEPER", this.getPlayer(jsonData.players.KEEPER));
+    players.set("LEFT", this.getPlayer(jsonData.players.LEFT));
+    players.set("ACROSS", this.getPlayer(jsonData.players.ACROSS));
+    players.set("RIGHT", this.getPlayer(jsonData.players.RIGHT));
+    return new GameState(jsonData.id, players, jsonData.over, round);
+  }
+
+  static getPlayer(jsonData) {
+    return new Player(jsonData.name, jsonData.isBot);
+  }
+}
+
 export class Card {
   constructor(rank, suit) {
     this.rank = rank;
