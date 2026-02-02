@@ -1,4 +1,5 @@
 import { Application, Assets, Sprite } from "pixi.js";
+import { Card } from "./hearts.js";
 
 // const apiUrl = import.meta.env.VITE_API_URL;
 const wsUrl = import.meta.env.VITE_WS_URL;
@@ -11,7 +12,7 @@ const getLastPathSegment = (url) => {
   return parts.pop() || parts.pop();
 };
 
-const openWebSocket = (url) => {
+const openWebSocket = (url, app) => {
   let ws = new WebSocket(url);
   ws.onopen = () => {
     console.log("Connected to WebSocket server");
@@ -19,11 +20,24 @@ const openWebSocket = (url) => {
   };
 
   ws.onmessage = (event) => {
-    console.log(`Received: ${event.data}`);
-    // Update your PixiJS scene based on the data
-    // Example: parse JSON data and update object positions
-    // const data = JSON.parse(event.data);
-    // myPixiSprite.x = data.x;
+    // Update PixiJS scene based on the data
+    const gameState = JSON.parse(event.data);
+    if (gameState.round.trick.cards) {
+      app.stage.removeChildren(); // TODO: do we need to dispose anything?
+      let x = 100;
+      gameState.round.trick.cards.forEach((c) => {
+        const card = new Card(c.rank, c.suit);
+        console.log(card.getSvgPath());
+        card.getSprite().then((sprite) => {
+          sprite.position.set(x, app.screen.height / 2);
+          x = x + sprite.width + 10;
+          app.stage.addChild(sprite);
+          return sprite;
+        });
+      });
+    } else {
+      console.log(`Received: ${event.data}`);
+    }
   };
 
   ws.onclose = () => {
@@ -51,10 +65,12 @@ const openWebSocket = (url) => {
   // Append the application canvas to the document body
   document.getElementById("pixi-container").appendChild(app.canvas);
 
-  openWebSocket(wsUrl + "/games/ws/hearts/" + gameId);
+  openWebSocket(wsUrl + "/games/ws/hearts/" + gameId, app);
 
   // Load the card texture
-  const cardTexture = await Assets.load("/assets/cards/SPADE-12-QUEEN.svg");
+  const queen = new Card("QUEEN", "SPADES");
+  console.log(`SVG path: ${queen.getSvgPath()}`);
+  const cardTexture = await Assets.load(queen.getSvgPath());
 
   // Create a card Sprite
   const card = new Sprite(cardTexture);
