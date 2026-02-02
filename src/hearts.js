@@ -1,4 +1,4 @@
-import {Assets, Point, Sprite} from "pixi.js";
+import { Assets, Point, Sprite } from "pixi.js";
 
 const imgUrlRoot = import.meta.env.VITE_IMAGE_URL_ROOT;
 
@@ -21,15 +21,15 @@ const getNextDirection = (direction) => {
     case Directions.KEEPER:
       return Directions.LEFT;
     case Directions.LEFT:
-      return Directions.ACROSS
+      return Directions.ACROSS;
     case Directions.ACROSS:
       return Directions.RIGHT;
     case Directions.RIGHT:
-      return Directions.KEEPER
+      return Directions.KEEPER;
     default:
       return "";
   }
-}
+};
 
 export class TrickState {
   constructor(trickNumber, leader, cards, winner) {
@@ -47,9 +47,12 @@ export class TrickState {
 
   async animateCards(app) {
     let direction = this.leader;
+    if (this.cards.length === 1) {
+      app.stage.removeChildren();
+    }
     for (const card of this.cards) {
-      await this.animateCard(app, card, direction)
-          .then(c => direction = getNextDirection(direction));
+      await this.animateCard(app, card, direction);
+      direction = getNextDirection(direction);
     }
   }
 
@@ -57,44 +60,53 @@ export class TrickState {
     const origin = this.getOrigin(direction, app);
     const destination = this.getDestination(direction, app);
     const speed = 10;
-    console.log(`Animating card:${card.rank} ${card.suit} ${direction} ${destination}`);
+    console.log(
+      `Animating card:${card.rank} ${card.suit} ${direction} ${destination}`,
+    );
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       const sprite = card.getSprite();
-      sprite.scale.set(0.5);
-      sprite.anchor.set(0.5);
-      sprite.position.set(origin.x, origin.y);
-      app.stage.addChild(sprite);
+      if (app.stage.children.indexOf(sprite) >= 0) {
+        // each card can only appear once in the scene
+        resolve(card);
+      } else {
+        sprite.scale.set(0.5);
+        sprite.anchor.set(0.5);
+        sprite.position.set(origin.x, origin.y);
+        app.stage.addChild(sprite);
 
-      const animation = (ticker) => {
-        // Calculate the distance to the target
-        const dx = destination.x - sprite.position.x;
-        const dy = destination.y - sprite.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const animation = (ticker) => {
+          // Calculate the distance to the target
+          const dx = destination.x - sprite.position.x;
+          const dy = destination.y - sprite.position.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
 
-        // If the object is close enough to the target, stop moving
-        if (distance < speed * ticker.deltaTime) {
-          sprite.position.set(destination.x, destination.y);
-          // stop/remove the animation after reaching destination
-          app.ticker.remove(animation);
-          resolve(card);
-        } else {
-          // Calculate the movement amount for this frame
-          let moveX = 0;
-          if (dx !== 0) {
-            moveX = (dx / distance) * speed * ticker.deltaTime;
+          // If the object is close enough to the target, stop moving
+          if (distance < speed * ticker.deltaTime) {
+            sprite.position.set(destination.x, destination.y);
+            // stop/remove the animation after reaching destination
+            resolve(card);
+            app.ticker.remove(animation);
+          } else {
+            // Calculate the movement amount for this frame
+            let moveX = 0;
+            if (dx !== 0) {
+              moveX = (dx / distance) * speed * ticker.deltaTime;
+            }
+            let moveY = 0;
+            if (dy !== 0) {
+              moveY = (dy / distance) * speed * ticker.deltaTime;
+            }
+
+            // Update the object's position
+            sprite.position.set(
+              sprite.position.x + moveX,
+              sprite.position.y + moveY,
+            );
           }
-          let moveY = 0;
-          if (dy !== 0) {
-            moveY = (dy / distance) * speed * ticker.deltaTime;
-          }
-
-          // Update the object's position
-          sprite.position.set(sprite.position.x + moveX, sprite.position.y + moveY);
-        }
-      };
-
-      app.ticker.add(animation);
+        };
+        app.ticker.add(animation);
+      }
     });
   }
 
@@ -109,23 +121,35 @@ export class TrickState {
       case Directions.RIGHT:
         return new Point(app.screen.width, app.screen.height / 2);
       default:
-        return new Point(0,0);
+        return new Point(0, 0);
     }
   }
 
   getDestination(direction, app) {
     switch (direction) {
       case Directions.KEEPER:
-        return new Point(app.screen.width / 2, (app.screen.height / 2) + TrickState.OFFSET);
+        return new Point(
+          app.screen.width / 2,
+          app.screen.height / 2 + TrickState.OFFSET,
+        );
       case Directions.LEFT:
-        return new Point((app.screen.width / 2) - TrickState.OFFSET, app.screen.height / 2);
+        return new Point(
+          app.screen.width / 2 - TrickState.OFFSET,
+          app.screen.height / 2,
+        );
       case Directions.ACROSS:
-        return new Point(app.screen.width / 2, (app.screen.height / 2) - TrickState.OFFSET);
+        return new Point(
+          app.screen.width / 2,
+          app.screen.height / 2 - TrickState.OFFSET,
+        );
       case Directions.RIGHT:
-        return new Point((app.screen.width / 2) + TrickState.OFFSET, app.screen.height / 2);
+        return new Point(
+          app.screen.width / 2 + TrickState.OFFSET,
+          app.screen.height / 2,
+        );
       default:
         console.log("DEFAULT DESTINATION");
-        return new Point(0,0);
+        return new Point(0, 0);
     }
   }
 }
@@ -197,6 +221,12 @@ export class GameState {
   getTrickCards() {
     return this.round.getTrickCards();
   }
+
+  async updateStage(app) {
+    if (this.getTrickCards().length > 0) {
+      await this.round.trick.animateCards(app);
+    }
+  }
 }
 
 const Suits = Object.freeze({
@@ -219,7 +249,7 @@ const Ranks = Object.freeze({
   JACK: "JACK",
   QUEEN: "QUEEN",
   KING: "KING",
-  ACE: "ACE"
+  ACE: "ACE",
 });
 
 export class Card {
@@ -295,8 +325,8 @@ export class SpritePool {
       for (const rank of Object.values(Ranks)) {
         const card = new Card(rank, suit);
         Assets.load(card.getSvgPath())
-            .then((texture) => new Sprite(texture))
-            .then((sprite) => this.addSprite(card.getSvgPath(), sprite));
+          .then((texture) => new Sprite(texture))
+          .then((sprite) => this.addSprite(card.getSvgPath(), sprite));
       }
     }
   }
@@ -308,8 +338,27 @@ export class SpritePool {
   getSprite(key) {
     return this.pool.get(key);
   }
-
 }
 
-const SPRITE_POOL = new SpritePool();
-await SPRITE_POOL.initialize();
+export const SPRITE_POOL = new SpritePool();
+
+export class GameEventHandler {
+  constructor(app) {
+    this.app = app;
+    this.eventQueue = [];
+    this.isProcessing = false;
+  }
+
+  async processEvent(event) {
+    this.eventQueue.push(event);
+    if (this.isProcessing || this.eventQueue.length === 0) return;
+    this.isProcessing = true;
+
+    while (this.eventQueue.length > 0) {
+      const event = this.eventQueue.shift();
+      await event.updateStage(this.app); // Process one by one
+    }
+
+    this.isProcessing = false;
+  }
+}

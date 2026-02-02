@@ -1,5 +1,5 @@
-import { Application, Assets, Sprite } from "pixi.js";
-import { Card, GameState } from "./hearts.js";
+import { Application } from "pixi.js";
+import { GameEventHandler, GameState, SPRITE_POOL } from "./hearts.js";
 
 const wsUrl = import.meta.env.VITE_WS_URL;
 const devGameId = import.meta.env.VITE_DEV_GAME_ID;
@@ -22,9 +22,9 @@ const getGameId = () => {
     console.log(`Using game ID from window URL: ${gameId}`);
   }
   return gameId;
-}
+};
 
-const openWebSocket = (url, app) => {
+const openWebSocket = (url, eventHandler) => {
   let ws = new WebSocket(url);
   ws.onopen = () => {
     console.log("Connected to WebSocket server");
@@ -35,12 +35,8 @@ const openWebSocket = (url, app) => {
     // Update PixiJS scene based on the data
     const gameJson = JSON.parse(event.data);
     const gameState = GameState.fromJson(gameJson);
-    if (gameState.getTrickCards().length > 0) {
-      app.stage.removeChildren(); // TODO: do we need to dispose anything?
-      gameState.round.trick.animateCards(app);
-    } else {
-      console.log(`Received: ${event.data}`);
-    }
+    eventHandler.processEvent(gameState);
+    console.log(`Received: ${event.data}`);
   };
 
   ws.onclose = () => {
@@ -65,7 +61,10 @@ const openWebSocket = (url, app) => {
   // Append the application canvas to the document body
   document.getElementById("pixi-container").appendChild(app.canvas);
 
-  openWebSocket(wsUrl + "/games/ws/hearts/" + gameId, app);
+  await SPRITE_POOL.initialize();
+  const eventHandler = new GameEventHandler(app);
+
+  openWebSocket(wsUrl + "/games/ws/hearts/" + gameId, eventHandler);
 
   // Listen for animate update
   // app.ticker.add((time) => {
