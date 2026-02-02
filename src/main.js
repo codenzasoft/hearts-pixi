@@ -1,8 +1,8 @@
 import { Application, Assets, Sprite } from "pixi.js";
 import { Card, GameState } from "./hearts.js";
 
-// const apiUrl = import.meta.env.VITE_API_URL;
 const wsUrl = import.meta.env.VITE_WS_URL;
+const devGameId = import.meta.env.VITE_DEV_GAME_ID;
 
 const getLastPathSegment = (url) => {
   const pathname = new URL(url).pathname;
@@ -11,6 +11,18 @@ const getLastPathSegment = (url) => {
   // Calling it a second time handles cases where the URL ends in a trailing slash.
   return parts.pop() || parts.pop();
 };
+
+const getGameId = () => {
+  const theUrl = window.location.href;
+  let gameId = getLastPathSegment(theUrl);
+  if (gameId.length === 0) {
+    gameId = devGameId;
+    console.log(`Using game ID from env.development: ${gameId}`);
+  } else {
+    console.log(`Using game ID from window URL: ${gameId}`);
+  }
+  return gameId;
+}
 
 const openWebSocket = (url, app) => {
   let ws = new WebSocket(url);
@@ -23,10 +35,10 @@ const openWebSocket = (url, app) => {
     // Update PixiJS scene based on the data
     const gameJson = JSON.parse(event.data);
     const gameState = GameState.fromJson(gameJson);
-    if (gameState.round.trick.cards) {
+    if (gameState.getTrickCards().length > 0) {
       app.stage.removeChildren(); // TODO: do we need to dispose anything?
       let x = 100;
-      gameState.round.trick.cards.forEach((card) => {
+      gameState.getTrickCards().forEach((card) => {
         console.log(card.getSvgPath());
         card.getSprite().then((sprite) => {
           sprite.position.set(x, app.screen.height / 2);
@@ -51,10 +63,7 @@ const openWebSocket = (url, app) => {
 };
 
 (async () => {
-  const theUrl = window.location.href;
-  const gameId = getLastPathSegment(theUrl);
-  console.log(`Href: ${theUrl}`);
-  console.log(`Game ID: ${gameId}`);
+  const gameId = getGameId();
 
   // Create a new application
   const app = new Application();
@@ -66,23 +75,6 @@ const openWebSocket = (url, app) => {
   document.getElementById("pixi-container").appendChild(app.canvas);
 
   openWebSocket(wsUrl + "/games/ws/hearts/" + gameId, app);
-
-  // Load the card texture
-  const queen = new Card("QUEEN", "SPADES");
-  console.log(`SVG path: ${queen.getSvgPath()}`);
-  const cardTexture = await Assets.load(queen.getSvgPath());
-
-  // Create a card Sprite
-  const card = new Sprite(cardTexture);
-
-  // Center the sprite's anchor point
-  card.anchor.set(0.5);
-
-  // Move the sprite to the center of the screen
-  card.position.set(app.screen.width / 2, app.screen.height / 2);
-
-  // Add the card to the stage
-  app.stage.addChild(card);
 
   // Listen for animate update
   // app.ticker.add((time) => {

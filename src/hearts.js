@@ -1,5 +1,7 @@
 import { Assets, Sprite } from "pixi.js";
 
+const imgUrlRoot = import.meta.env.VITE_IMAGE_URL_ROOT;
+
 export class Player {
   constructor(name, isBot) {
     this.name = name;
@@ -14,6 +16,10 @@ export class TrickState {
     this.cards = cards;
     this.winner = winner;
   }
+
+  getCards() {
+    return this.cards;
+  }
 }
 
 export class RoundState {
@@ -21,6 +27,13 @@ export class RoundState {
     this.roundNumner = roundNumber;
     this.passDirection = passDirection;
     this.trick = trick;
+  }
+
+  getTrickCards() {
+    if (this.trick !== null) {
+      return this.trick.getCards();
+    }
+    return {};
   }
 }
 
@@ -72,6 +85,10 @@ export class GameState {
   static getPlayer(jsonData) {
     return new Player(jsonData.name, jsonData.isBot);
   }
+
+  getTrickCards() {
+    return this.round.getTrickCards();
+  }
 }
 
 export class Card {
@@ -80,14 +97,13 @@ export class Card {
     this.suit = suit;
   }
 
-  async getSprite() {
-    return Assets.load(this.getSvgPath()).then(
-      (texture) => new Sprite(texture),
-    );
+  getSprite() {
+    return Assets.load(this.getSvgPath())
+        .then((texture) => new Sprite(texture));
   }
 
   getSvgPath() {
-    return `/assets/cards/${this.getSvgSuit()}-${this.getSvgSuffix()}.svg`;
+    return `${imgUrlRoot}/cards/${this.getSvgSuit()}-${this.getSvgSuffix()}.svg`;
   }
 
   getSvgSuit() {
