@@ -1,4 +1,4 @@
-import { Assets, Sprite } from "pixi.js";
+import {Assets, Point, Sprite} from "pixi.js";
 
 const imgUrlRoot = import.meta.env.VITE_IMAGE_URL_ROOT;
 
@@ -6,6 +6,28 @@ export class Player {
   constructor(name, isBot) {
     this.name = name;
     this.isBot = isBot;
+  }
+}
+
+const Directions = Object.freeze({
+  KEEPER: "KEEPER",
+  LEFT: "LEFT",
+  ACROSS: "ACROSS",
+  RIGHT: "RIGHT",
+});
+
+const getNextDirection = (direction) => {
+  switch (direction) {
+    case Directions.KEEPER:
+      return Directions.LEFT;
+    case Directions.LEFT:
+      return Directions.ACROSS
+    case Directions.ACROSS:
+      return Directions.RIGHT;
+    case Directions.RIGHT:
+      return Directions.KEEPER
+    default:
+      return "";
   }
 }
 
@@ -17,8 +39,92 @@ export class TrickState {
     this.winner = winner;
   }
 
+  static OFFSET = 100;
+
   getCards() {
     return this.cards;
+  }
+
+  async animateCards(app) {
+    let direction = this.leader;
+    for (const card of this.cards) {
+      await this.animateCard(app, card, direction);
+      direction = getNextDirection(direction);
+    }
+  }
+
+  async animateCard(app, card, direction) {
+    const origin = this.getOrigin(direction, app);
+    const destination = this.getDestination(direction, app);
+    const speed = 5;
+    console.log(`Animating card:${card.rank} ${card.suit} ${direction} ${destination}`);
+
+    await card.getSprite().then((sprite) => {
+      sprite.scale.set(0.5);
+      sprite.anchor.set(0.5)
+      sprite.position.set(origin.x, origin.y);
+      app.stage.addChild(sprite);
+
+      const animatedCard = (ticker) => {
+        // Calculate the distance to the target
+        const dx = destination.x - sprite.position.x;
+        const dy = destination.y - sprite.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // If the object is close enough to the target, stop moving
+        if (distance < speed * ticker.deltaTime) {
+          sprite.position.set(destination.x, destination.y);
+          // stop/remove the animation after reaching destination
+          app.ticker.remove(animatedCard);
+        } else {
+          // Calculate the movement amount for this frame
+          let moveX = 0;
+          if (dx !== 0) {
+            moveX = (dx / distance) * speed * ticker.deltaTime;
+          }
+          let moveY = 0;
+          if (dy !== 0) {
+            moveY = (dy / distance) * speed * ticker.deltaTime;
+          }
+
+          // Update the object's position
+          sprite.position.set(sprite.position.x + moveX, sprite.position.y + moveY);
+        }
+      };
+
+      app.ticker.add(animatedCard);
+    });
+  }
+
+  getOrigin(direction, app) {
+    switch (direction) {
+      case Directions.KEEPER:
+        return new Point(app.screen.width / 2, app.screen.height);
+      case Directions.LEFT:
+        return new Point(0, app.screen.height / 2);
+      case Directions.ACROSS:
+        return new Point(app.screen.width / 2, 0);
+      case Directions.RIGHT:
+        return new Point(app.screen.width, app.screen.height / 2);
+      default:
+        return new Point(0,0);
+    }
+  }
+
+  getDestination(direction, app) {
+    switch (direction) {
+      case Directions.KEEPER:
+        return new Point(app.screen.width / 2, (app.screen.height / 2) + TrickState.OFFSET);
+      case Directions.LEFT:
+        return new Point((app.screen.width / 2) - TrickState.OFFSET, app.screen.height / 2);
+      case Directions.ACROSS:
+        return new Point(app.screen.width / 2, (app.screen.height / 2) - TrickState.OFFSET);
+      case Directions.RIGHT:
+        return new Point((app.screen.width / 2) + TrickState.OFFSET, app.screen.height / 2);
+      default:
+        console.log("DEFAULT DESTINATION");
+        return new Point(0,0);
+    }
   }
 }
 

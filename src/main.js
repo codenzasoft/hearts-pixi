@@ -37,16 +37,7 @@ const openWebSocket = (url, app) => {
     const gameState = GameState.fromJson(gameJson);
     if (gameState.getTrickCards().length > 0) {
       app.stage.removeChildren(); // TODO: do we need to dispose anything?
-      let x = 100;
-      gameState.getTrickCards().forEach((card) => {
-        console.log(card.getSvgPath());
-        card.getSprite().then((sprite) => {
-          sprite.position.set(x, app.screen.height / 2);
-          x = x + sprite.width + 10;
-          app.stage.addChild(sprite);
-          return sprite;
-        });
-      });
+      gameState.round.trick.animateCards(app);
     } else {
       console.log(`Received: ${event.data}`);
     }
