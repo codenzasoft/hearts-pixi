@@ -32,6 +32,13 @@ export class GameState {
     this.round = round;
   }
 
+  /**
+   * Parse the game state JSON with custom code. Build in class transformers require
+   * the use of typescript.
+   *
+   * @param jsonData
+   * @returns {GameState}
+   */
   static fromJson(jsonData) {
     let trick = null;
     if ("trick" in jsonData.round) {
