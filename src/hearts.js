@@ -48,24 +48,25 @@ export class TrickState {
   async animateCards(app) {
     let direction = this.leader;
     for (const card of this.cards) {
-      await this.animateCard(app, card, direction);
-      direction = getNextDirection(direction);
+      await this.animateCard(app, card, direction)
+          .then(c => direction = getNextDirection(direction));
     }
   }
 
-  async animateCard(app, card, direction) {
+  animateCard(app, card, direction) {
     const origin = this.getOrigin(direction, app);
     const destination = this.getDestination(direction, app);
-    const speed = 5;
+    const speed = 10;
     console.log(`Animating card:${card.rank} ${card.suit} ${direction} ${destination}`);
 
-    await card.getSprite().then((sprite) => {
+    return new Promise((resolve, reject) => {
+      const sprite = card.getSprite();
       sprite.scale.set(0.5);
-      sprite.anchor.set(0.5)
+      sprite.anchor.set(0.5);
       sprite.position.set(origin.x, origin.y);
       app.stage.addChild(sprite);
 
-      const animatedCard = (ticker) => {
+      const animation = (ticker) => {
         // Calculate the distance to the target
         const dx = destination.x - sprite.position.x;
         const dy = destination.y - sprite.position.y;
@@ -75,7 +76,8 @@ export class TrickState {
         if (distance < speed * ticker.deltaTime) {
           sprite.position.set(destination.x, destination.y);
           // stop/remove the animation after reaching destination
-          app.ticker.remove(animatedCard);
+          app.ticker.remove(animation);
+          resolve(card);
         } else {
           // Calculate the movement amount for this frame
           let moveX = 0;
@@ -92,7 +94,7 @@ export class TrickState {
         }
       };
 
-      app.ticker.add(animatedCard);
+      app.ticker.add(animation);
     });
   }
 
@@ -197,6 +199,29 @@ export class GameState {
   }
 }
 
+const Suits = Object.freeze({
+  CLUBS: "CLUBS",
+  DIAMONDS: "DIAMONDS",
+  SPADES: "SPADES",
+  HEARTS: "HEARTS",
+});
+
+const Ranks = Object.freeze({
+  TWO: "TWO",
+  THREE: "THREE",
+  FOUR: "FOUR",
+  FIVE: "FIVE",
+  SIX: "SIX",
+  SEVEN: "SEVEN",
+  EIGHT: "EIGHT",
+  NINE: "NINE",
+  TEN: "TEN",
+  JACK: "JACK",
+  QUEEN: "QUEEN",
+  KING: "KING",
+  ACE: "ACE"
+});
+
 export class Card {
   constructor(rank, suit) {
     this.rank = rank;
@@ -204,8 +229,7 @@ export class Card {
   }
 
   getSprite() {
-    return Assets.load(this.getSvgPath())
-        .then((texture) => new Sprite(texture));
+    return SPRITE_POOL.getSprite(this.getSvgPath());
   }
 
   getSvgPath() {
@@ -214,13 +238,13 @@ export class Card {
 
   getSvgSuit() {
     switch (this.suit) {
-      case "CLUBS":
+      case Suits.CLUBS:
         return "CLUB";
-      case "DIAMONDS":
+      case Suits.DIAMONDS:
         return "DIAMOND";
-      case "SPADES":
+      case Suits.SPADES:
         return "SPADE";
-      case "HEARTS":
+      case Suits.HEARTS:
         return "HEART";
       default:
         return "";
@@ -229,34 +253,63 @@ export class Card {
 
   getSvgSuffix() {
     switch (this.rank) {
-      case "TWO":
+      case Ranks.TWO:
         return "2";
-      case "THREE":
+      case Ranks.THREE:
         return "3";
-      case "FOUR":
+      case Ranks.FOUR:
         return "4";
-      case "FIVE":
+      case Ranks.FIVE:
         return "5";
-      case "SIX":
+      case Ranks.SIX:
         return "6";
-      case "SEVEN":
+      case Ranks.SEVEN:
         return "7";
-      case "EIGHT":
+      case Ranks.EIGHT:
         return "8";
-      case "NINE":
+      case Ranks.NINE:
         return "9";
-      case "TEN":
+      case Ranks.TEN:
         return "10";
-      case "JACK":
+      case Ranks.JACK:
         return "11-JACK";
-      case "QUEEN":
+      case Ranks.QUEEN:
         return "12-QUEEN";
-      case "KING":
+      case Ranks.KING:
         return "13-KING";
-      case "ACE":
+      case Ranks.ACE:
         return "1";
       default:
         return "";
     }
   }
 }
+
+export class SpritePool {
+  constructor() {
+    this.pool = new Map();
+  }
+
+  async initialize() {
+    for (const suit of Object.values(Suits)) {
+      for (const rank of Object.values(Ranks)) {
+        const card = new Card(rank, suit);
+        Assets.load(card.getSvgPath())
+            .then((texture) => new Sprite(texture))
+            .then((sprite) => this.addSprite(card.getSvgPath(), sprite));
+      }
+    }
+  }
+
+  addSprite(key, sprite) {
+    this.pool.set(key, sprite);
+  }
+
+  getSprite(key) {
+    return this.pool.get(key);
+  }
+
+}
+
+const SPRITE_POOL = new SpritePool();
+await SPRITE_POOL.initialize();
