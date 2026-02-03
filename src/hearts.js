@@ -45,15 +45,19 @@ export class TrickState {
     return this.cards;
   }
 
-  async playCards(app) {
+  isComplete() {
+    return this.cards.length === 4;
+  }
+
+  async displayPlayedCards(app) {
     let direction = this.leader;
     for (const card of this.cards) {
-      await this.playCard(app, card, direction);
+      await this.displayPlayedCard(app, card, direction);
       direction = getNextDirection(direction);
     }
   }
 
-  playCard(app, card, direction) {
+  displayPlayedCard(app, card, direction) {
     const sprite = card.getSprite();
     let origin;
     if (sprite.parent === null) {
@@ -155,7 +159,7 @@ export class TrickState {
     }
   }
 
-  async takeTrick(app) {
+  async displayTakeTrick(app) {
     const direction = this.winner;
     const destination = this.getOrigin(direction, app)
 
@@ -190,7 +194,7 @@ export class RoundState {
 
   displayHand(app) {
     if (this.hand.length > 0) {
-      // a bit of a hack?
+      // a bit of a hack - get a card to determine spacing/layout
       const aSprite = this.hand.at(0).getSprite()
       const cardWidth = aSprite.width;
       const cardHeight = aSprite.height;
@@ -199,6 +203,7 @@ export class RoundState {
       const y = app.screen.height - cardHeight - 10;
       for (const card of this.hand) {
         const sprite = card.getSprite();
+        sprite.eventMode = "static";
         sprite.position.set(x,y);
         if (app.stage.children.indexOf(sprite) < 0) {
           console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
@@ -209,11 +214,41 @@ export class RoundState {
     }
   }
 
-  getTrickCards() {
-    if (this.trick !== null) {
-      return this.trick.getCards();
+  async displayTrick(app) {
+    if (this.hasTrick()) {
+      await this.trick.displayPlayedCards(app);
     }
-    return {};
+  }
+
+  async displayTakeTrick(app) {
+    if (this.isTrickComplete()) {
+      await this.trick.displayTakeTrick(app);
+    }
+  }
+
+  hasTrick() {
+    return this.trick !== null;
+  }
+
+  isTrickComplete() {
+    return this.hasTrick() && this.trick.isComplete();
+  }
+
+  hookMove(app) {
+    if (this.move === "play") {
+      this.hookPlay(app);
+    }
+  }
+
+  hookPlay(app) {
+    for (const card of this.hand) {
+      const sprite = card.getSprite();
+      sprite.eventMode = "static";
+      sprite.on("pointerdown", (event) => {
+        // TODO: play card via websocket
+        console.log(`Play ${sprite.card.suit} ${sprite.card.rank}`);
+      });
+    }
   }
 }
 
@@ -274,18 +309,23 @@ export class GameState {
     return new Player(jsonData.name, jsonData.isBot);
   }
 
-  getTrickCards() {
-    return this.round.getTrickCards();
+  displayHand(app) {
+    this.round.displayHand(app);
+  }
+
+  async displayTrick(app) {
+    await this.round.displayTrick(app);
+  }
+
+  async displayTakeTrick(app) {
+    await this.round.displayTakeTrick(app);
   }
 
   async updateStage(app) {
-    this.round.displayHand(app);
-    if (this.getTrickCards().length > 0) {
-      await this.round.trick.playCards(app);
-    }
-    if (this.getTrickCards().length === 4) {
-      await this.round.trick.takeTrick(app);
-    }
+    this.displayHand(app);
+    await this.displayTrick(app);
+    this.round.hookMove(app); // TODO: WIP
+    await this.displayTakeTrick(app);
   }
 }
 
