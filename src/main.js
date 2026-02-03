@@ -28,7 +28,7 @@ const openWebSocket = (url, eventHandler) => {
   let ws = new WebSocket(url);
   ws.onopen = () => {
     console.log("Connected to WebSocket server");
-    // TODO: send an initial message if needed
+    eventHandler.setWebsocket(ws);
   };
 
   ws.onmessage = (event) => {
@@ -41,6 +41,7 @@ const openWebSocket = (url, eventHandler) => {
 
   ws.onclose = () => {
     console.log("Disconnected from WebSocket server");
+    eventHandler.setWebsocket(null);
   };
 
   ws.onerror = (error) => {

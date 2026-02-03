@@ -203,7 +203,7 @@ export class RoundState {
       const y = app.screen.height - cardHeight - 10;
       for (const card of this.hand) {
         const sprite = card.getSprite();
-        sprite.eventMode = "static";
+        sprite.eventMode = "none";
         sprite.position.set(x,y);
         if (app.stage.children.indexOf(sprite) < 0) {
           console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
@@ -234,19 +234,19 @@ export class RoundState {
     return this.hasTrick() && this.trick.isComplete();
   }
 
-  hookMove(app) {
+  hookMove(app, eventHandler) {
     if (this.move === "play") {
-      this.hookPlay(app);
+      this.hookPlay(app, eventHandler);
     }
   }
 
-  hookPlay(app) {
+  hookPlay(app, eventHandler) {
     for (const card of this.hand) {
       const sprite = card.getSprite();
       sprite.eventMode = "static";
       sprite.on("pointerdown", (event) => {
-        // TODO: play card via websocket
         console.log(`Play ${sprite.card.suit} ${sprite.card.rank}`);
+        eventHandler.sendMessage(new ClientRequest("play", [card]))
       });
     }
   }
@@ -321,10 +321,10 @@ export class GameState {
     await this.round.displayTakeTrick(app);
   }
 
-  async updateStage(app) {
+  async updateStage(app, eventHandler) {
     this.displayHand(app);
     await this.displayTrick(app);
-    this.round.hookMove(app); // TODO: WIP
+    this.round.hookMove(app, eventHandler);
     await this.displayTakeTrick(app);
   }
 }
@@ -455,11 +455,28 @@ export class SpritePool {
 
 export const SPRITE_POOL = new SpritePool();
 
+class ClientRequest {
+  constructor(type, cards) {
+    this.type = type;
+    this.cards = cards;
+  }
+
+}
+
 export class GameEventHandler {
   constructor(app) {
     this.app = app;
     this.eventQueue = [];
     this.isProcessing = false;
+    this.websocket = null;
+  }
+
+  setWebsocket(socket) {
+    this.websocket = socket;
+  }
+
+  sendMessage(msgObject) {
+    this.websocket.send(JSON.stringify(msgObject));
   }
 
   async processEvent(event) {
@@ -469,7 +486,7 @@ export class GameEventHandler {
 
     while (this.eventQueue.length > 0) {
       const event = this.eventQueue.shift();
-      await event.updateStage(this.app); // Process one by one
+      await event.updateStage(this.app, this); // Process one by one
     }
 
     this.isProcessing = false;
