@@ -47,9 +47,9 @@ export class TrickState {
 
   async animateCards(app) {
     let direction = this.leader;
-    if (this.cards.length === 1) {
-      app.stage.removeChildren();
-    }
+    // if (this.cards.length === 1) {
+    //   app.stage.removeChildren();
+    // }
     for (const card of this.cards) {
       await this.animateCard(app, card, direction);
       direction = getNextDirection(direction);
@@ -57,7 +57,7 @@ export class TrickState {
   }
 
   animateCard(app, card, direction) {
-    const origin = this.getOrigin(direction, app);
+    const origin = this.getOrigin(direction, app, card);
     const destination = this.getDestination(direction, app);
     const speed = 10;
     console.log(
@@ -66,51 +66,49 @@ export class TrickState {
 
     return new Promise((resolve) => {
       const sprite = card.getSprite();
-      if (app.stage.children.indexOf(sprite) >= 0) {
-        // each card can only appear once in the scene
-        resolve(card);
-      } else {
-        sprite.scale.set(0.5);
-        sprite.anchor.set(0.5);
-        sprite.position.set(origin.x, origin.y);
-        app.stage.addChild(sprite);
+      sprite.position.set(origin.x, origin.y);
+      app.stage.addChild(sprite);
 
-        const animation = (ticker) => {
-          // Calculate the distance to the target
-          const dx = destination.x - sprite.position.x;
-          const dy = destination.y - sprite.position.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+      const animation = (ticker) => {
+        // Calculate the distance to the target
+        const dx = destination.x - sprite.position.x;
+        const dy = destination.y - sprite.position.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // If the object is close enough to the target, stop moving
-          if (distance < speed * ticker.deltaTime) {
-            sprite.position.set(destination.x, destination.y);
-            // stop/remove the animation after reaching destination
-            resolve(card);
-            app.ticker.remove(animation);
-          } else {
-            // Calculate the movement amount for this frame
-            let moveX = 0;
-            if (dx !== 0) {
-              moveX = (dx / distance) * speed * ticker.deltaTime;
-            }
-            let moveY = 0;
-            if (dy !== 0) {
-              moveY = (dy / distance) * speed * ticker.deltaTime;
-            }
-
-            // Update the object's position
-            sprite.position.set(
-              sprite.position.x + moveX,
-              sprite.position.y + moveY,
-            );
+        // If the object is close enough to the target, stop moving
+        if (distance < speed * ticker.deltaTime) {
+          sprite.position.set(destination.x, destination.y);
+          // stop/remove the animation after reaching destination
+          resolve(card);
+          app.ticker.remove(animation);
+        } else {
+          // Calculate the movement amount for this frame
+          let moveX = 0;
+          if (dx !== 0) {
+            moveX = (dx / distance) * speed * ticker.deltaTime;
           }
-        };
-        app.ticker.add(animation);
+          let moveY = 0;
+          if (dy !== 0) {
+            moveY = (dy / distance) * speed * ticker.deltaTime;
+          }
+
+          // Update the object's position
+          sprite.position.set(
+            sprite.position.x + moveX,
+            sprite.position.y + moveY,
+          );
+        }
       }
+      app.ticker.add(animation);
     });
   }
 
-  getOrigin(direction, app) {
+  getOrigin(direction, app, card) {
+    const sprite = card.getSprite();
+    if (app.stage.children.indexOf(sprite) >= 0) {
+      return new Point(sprite.position.x, sprite.position.y);
+    }
+
     switch (direction) {
       case Directions.KEEPER:
         return new Point(app.screen.width / 2, app.screen.height);
@@ -155,10 +153,31 @@ export class TrickState {
 }
 
 export class RoundState {
-  constructor(roundNumber, passDirection, trick) {
+  constructor(roundNumber, passDirection, trick, hand) {
     this.roundNumner = roundNumber;
     this.passDirection = passDirection;
     this.trick = trick;
+    this.hand = hand;
+  }
+
+  displayHand(app) {
+    if (this.hand.length > 0) {
+      // a bit of a hack?
+      const aSprite = this.hand.at(0).getSprite()
+      const cardWidth = aSprite.width;
+      const cardHeight = aSprite.height;
+      const handWidth = this.hand.length * cardWidth / 2; // divide by 2 to overlap cards
+      let x = (app.screen.width / 2) - (handWidth / 2);
+      const y = app.screen.height - cardHeight - 10;
+      for (const card of this.hand) {
+        const sprite = card.getSprite();
+        sprite.position.set(x,y);
+        if (app.stage.children.indexOf(sprite) < 0) {
+          app.stage.addChild(sprite);
+        }
+        x = x + (cardWidth / 2);
+      }
+    }
   }
 
   getTrickCards() {
@@ -200,10 +219,17 @@ export class GameState {
       );
     }
     let jsonRound = jsonData.round;
+    let hand = [];
+    if ("hand" in jsonRound) {
+      jsonRound.hand.forEach((jsonCard) => {
+        hand.push(new Card(jsonCard.rank, jsonCard.suit));
+      });
+    }
     let round = new RoundState(
       jsonRound.number,
       jsonRound.passDirection,
       trick,
+      hand
     );
     // this gets a little ugly...
     let players = new Map();
@@ -223,6 +249,7 @@ export class GameState {
   }
 
   async updateStage(app) {
+    this.round.displayHand(app);
     if (this.getTrickCards().length > 0) {
       await this.round.trick.animateCards(app);
     }
@@ -332,6 +359,8 @@ export class SpritePool {
   }
 
   addSprite(key, sprite) {
+    sprite.scale.set(0.5);
+    sprite.anchor.set(0.5);
     this.pool.set(key, sprite);
   }
 
