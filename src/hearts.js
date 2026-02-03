@@ -180,11 +180,12 @@ export class TrickState {
 }
 
 export class RoundState {
-  constructor(roundNumber, passDirection, trick, hand) {
+  constructor(roundNumber, passDirection, trick, hand, move) {
     this.roundNumner = roundNumber;
     this.passDirection = passDirection;
     this.trick = trick;
     this.hand = hand;
+    this.move = move;
   }
 
   displayHand(app) {
@@ -257,7 +258,8 @@ export class GameState {
       jsonRound.number,
       jsonRound.passDirection,
       trick,
-      hand
+      hand,
+      jsonRound.move
     );
     // this gets a little ugly...
     let players = new Map();
@@ -377,6 +379,13 @@ export class Card {
   }
 }
 
+export class CardSprite extends Sprite {
+  constructor(texture, card) {
+    super(texture);
+    this.card = card;
+  }
+}
+
 export class SpritePool {
   constructor() {
     this.pool = new Map();
@@ -387,7 +396,7 @@ export class SpritePool {
       for (const rank of Object.values(Ranks)) {
         const card = new Card(rank, suit);
         Assets.load(card.getSvgPath())
-          .then((texture) => new Sprite(texture))
+          .then((texture) => new CardSprite(texture, card))
           .then((sprite) => this.addSprite(card.getSvgPath(), sprite));
       }
     }
