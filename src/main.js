@@ -36,7 +36,7 @@ const openWebSocket = (url, eventHandler) => {
     const gameJson = JSON.parse(event.data);
     const gameState = GameState.fromJson(gameJson);
     eventHandler.processEvent(gameState);
-    console.log(`Received: ${event.data}`);
+    // console.log(`Received: ${event.data}`);
   };
 
   ws.onclose = () => {
