@@ -87,6 +87,7 @@ export class TrickState {
     const speed = 10;
 
     sprite.position.set(origin.x, origin.y);
+    sprite.rotation = 0;
     if (app.stage.children.indexOf(sprite) < 0) {
       console.log(`adding ${card.rank} ${card.suit} (from playCard)`);
       app.stage.addChild(sprite);
@@ -108,11 +109,13 @@ export class TrickState {
     // Calculate the distance to the destination
     const dx = destination.x - sprite.position.x;
     const dy = destination.y - sprite.position.y;
+    const dr = Math.PI - sprite.rotation;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     // If the object is close enough to the target, stop moving
     if (distance < speed * ticker.deltaTime) {
       sprite.position.set(destination.x, destination.y);
+      sprite.rotation = Math.PI;
       return true;
     } else {
       // Calculate the movement amount for this frame
@@ -124,12 +127,14 @@ export class TrickState {
       if (dy !== 0) {
         moveY = (dy / distance) * speed * ticker.deltaTime;
       }
+      const moveR = (dr / distance) * speed * ticker.deltaTime;
 
       // Update the object's position
       sprite.position.set(
           sprite.position.x + moveX,
           sprite.position.y + moveY,
       );
+      sprite.rotation += moveR;
       return false;
     }
   }
@@ -220,8 +225,9 @@ export class RoundState {
       const y = app.screen.height - cardHeight - 10;
       for (const card of this.hand) {
         const sprite = card.getSprite();
-        sprite.eventMode = "none";
+        sprite.eventMode = "passive";
         sprite.position.set(x,y);
+        sprite.rotation = 0;
         if (app.stage.children.indexOf(sprite) < 0) {
           console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
           app.stage.addChild(sprite);
@@ -267,7 +273,7 @@ export class RoundState {
           eventHandler.sendMessage(new ClientRequest("play", [card]))
         });
       } else {
-        sprite.eventMode = "none";
+        sprite.eventMode = "passive";
       }
     }
   }
