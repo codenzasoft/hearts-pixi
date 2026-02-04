@@ -32,10 +32,11 @@ const getNextDirection = (direction) => {
 };
 
 export class TrickState {
-  constructor(trickNumber, leader, cards, winner) {
+  constructor(trickNumber, leader, cards, moves, winner) {
     this.trickNumner = trickNumber;
     this.leader = leader;
     this.cards = cards;
+    this.moves = moves;
     this.winner = winner;
   }
 
@@ -43,6 +44,23 @@ export class TrickState {
 
   getCards() {
     return this.cards;
+  }
+
+  getTrumpSuit() {
+    if (this.cards.length > 0) {
+      return this.cards[0].suit;
+    } else {
+      return null;
+    }
+  }
+
+  isValidPlay(card) {
+    for (const move of this.moves) {
+      if (move.isTheSameAs(card)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   isComplete() {
@@ -184,12 +202,11 @@ export class TrickState {
 }
 
 export class RoundState {
-  constructor(roundNumber, passDirection, trick, hand, move) {
+  constructor(roundNumber, passDirection, trick, hand) {
     this.roundNumner = roundNumber;
     this.passDirection = passDirection;
     this.trick = trick;
     this.hand = hand;
-    this.move = move;
   }
 
   displayHand(app) {
@@ -235,7 +252,7 @@ export class RoundState {
   }
 
   hookMove(app, eventHandler) {
-    if (this.move === "play") {
+    if (this.hasTrick()) {
       this.hookPlay(app, eventHandler);
     }
   }
@@ -243,11 +260,15 @@ export class RoundState {
   hookPlay(app, eventHandler) {
     for (const card of this.hand) {
       const sprite = card.getSprite();
-      sprite.eventMode = "static";
-      sprite.on("pointerdown", (event) => {
-        console.log(`Play ${sprite.card.suit} ${sprite.card.rank}`);
-        eventHandler.sendMessage(new ClientRequest("play", [card]))
-      });
+      if (this.trick.isValidPlay(card)) {
+        sprite.eventMode = "static";
+        sprite.on("pointerdown", (event) => {
+          console.log(`Play ${sprite.card.suit} ${sprite.card.rank}`);
+          eventHandler.sendMessage(new ClientRequest("play", [card]))
+        });
+      } else {
+        sprite.eventMode = "none";
+      }
     }
   }
 }
@@ -275,10 +296,17 @@ export class GameState {
       jsonTrick.cards.forEach((jsonCard) => {
         cards.push(new Card(jsonCard.rank, jsonCard.suit));
       });
+      let moves = []
+      if (jsonTrick.moves !== undefined) {
+        jsonTrick.moves.forEach((jsonCard) => {
+          moves.push(new Card(jsonCard.rank, jsonCard.suit));
+        });
+      }
       trick = new TrickState(
         jsonTrick.number,
         jsonTrick.leader,
         cards,
+        moves,
         jsonTrick.winner,
       );
     }
@@ -294,7 +322,6 @@ export class GameState {
       jsonRound.passDirection,
       trick,
       hand,
-      jsonRound.move
     );
     // this gets a little ugly...
     let players = new Map();
@@ -358,12 +385,12 @@ export class Card {
     this.suit = suit;
   }
 
-  getSprite() {
-    return SPRITE_POOL.getSprite(this.getSvgPath());
+  isTheSameAs(card) {
+    return this.suit === card.suit && this.rank === card.rank;
   }
 
-  isOnStage(app) {
-    return app.stage.children.indexOf(this.getSprite()) >= 0;
+  getSprite() {
+    return SPRITE_POOL.getSprite(this.getSvgPath());
   }
 
   getSvgPath() {
