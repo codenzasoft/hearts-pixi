@@ -207,9 +207,10 @@ export class TrickState {
 }
 
 export class RoundState {
-  constructor(roundNumber, passDirection, trick, hand) {
+  constructor(roundNumber, passDirection, passPending, trick, hand) {
     this.roundNumner = roundNumber;
     this.passDirection = passDirection;
+    this.passPending = passPending;
     this.trick = trick;
     this.hand = hand;
   }
@@ -224,15 +225,17 @@ export class RoundState {
       let x = (app.screen.width / 2) - (handWidth / 2);
       const y = app.screen.height - cardHeight - 10;
       for (const card of this.hand) {
-        const sprite = card.getSprite();
-        sprite.eventMode = "passive";
-        sprite.position.set(x,y);
-        sprite.rotation = 0;
-        if (app.stage.children.indexOf(sprite) < 0) {
-          console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
-          app.stage.addChild(sprite);
+        if (!STATE_CACHE.getPass().containsCard(card)) {
+          const sprite = card.getSprite();
+          sprite.eventMode = "passive";
+          sprite.position.set(x, y);
+          sprite.rotation = 0;
+          if (app.stage.children.indexOf(sprite) < 0) {
+            console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
+            app.stage.addChild(sprite);
+          }
+          x = x + (cardWidth / 2);
         }
-        x = x + (cardWidth / 2);
       }
     }
   }
@@ -240,6 +243,31 @@ export class RoundState {
   async displayTrick(app) {
     if (this.hasTrick()) {
       await this.trick.displayPlayedCards(app);
+    }
+  }
+
+  async displayPass(app) {
+    const pass = STATE_CACHE.getPass();
+    if (!pass.isEmpty()) {
+      // a bit of a hack - get a card to determine spacing/layout
+      const aSprite = pass.getCards().at(0).getSprite()
+      const cardWidth = aSprite.width;
+      const space = cardWidth / 4;
+      const numCards = pass.getCards().length;
+      const passWidth = (numCards * cardWidth) + ((numCards - 1) * space);
+      let x = (app.screen.width / 2) - (passWidth / 2);
+      const y = app.screen.height / 2;
+      for (const card of pass.getCards()) {
+          const sprite = card.getSprite();
+          sprite.eventMode = "static";
+          sprite.position.set(x, y);
+          sprite.rotation = 0;
+          if (app.stage.children.indexOf(sprite) < 0) {
+            console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
+            app.stage.addChild(sprite);
+          }
+          x = x + cardWidth + space;
+      }
     }
   }
 
@@ -258,9 +286,15 @@ export class RoundState {
   }
 
   hookMove(app, eventHandler) {
-    if (this.hasTrick()) {
+    if (this.isPassPending()) {
+      this.hookPass(app, eventHandler);
+    } else if (this.hasTrick()) {
       this.hookPlay(app, eventHandler);
     }
+  }
+
+  isPassPending() {
+    return this.passPending.indexOf(Directions.KEEPER) >= 0;
   }
 
   hookPlay(app, eventHandler) {
@@ -275,6 +309,29 @@ export class RoundState {
       } else {
         sprite.eventMode = "passive";
       }
+    }
+  }
+
+  hookPass(app, eventHandler) {
+    let pass = STATE_CACHE.getPass();
+    for (const card of this.hand) {
+      const sprite = card.getSprite();
+      sprite.eventMode = "static";
+      sprite.on("pointerdown", (event) => {
+        if (pass.containsCard(card)) {
+          console.log(`Remove from pass ${sprite.card.suit} ${sprite.card.rank}`);
+          pass.removeCard(card);
+          this.displayHand(app);
+        } else {
+          console.log(`Add to pass ${sprite.card.suit} ${sprite.card.rank}`);
+          pass.addCard(sprite.card);
+          this.displayPass(app);
+          if (pass.isComplete()) {
+            eventHandler.sendMessage(new ClientRequest("pass", pass.getCards()));
+            STATE_CACHE.setPass(new Pass());
+          }
+        }
+      });
     }
   }
 }
@@ -323,9 +380,14 @@ export class GameState {
         hand.push(new Card(jsonCard.rank, jsonCard.suit));
       });
     }
+    let passPending = [];
+    if (jsonRound.passPending !== undefined) {
+      passPending = jsonRound.passPending;
+    }
     let round = new RoundState(
       jsonRound.number,
       jsonRound.passDirection,
+      passPending,
       trick,
       hand,
     );
@@ -346,6 +408,13 @@ export class GameState {
     this.round.displayHand(app);
   }
 
+  displayPass(app) {
+    const pass = STATE_CACHE.getPass();
+    if (!pass.isEmpty()) {
+      this.round.displayPass(app);
+    }
+  }
+
   async displayTrick(app) {
     await this.round.displayTrick(app);
   }
@@ -356,6 +425,7 @@ export class GameState {
 
   async updateStage(app, eventHandler) {
     this.displayHand(app);
+    this.displayPass(app);
     await this.displayTrick(app);
     this.round.hookMove(app, eventHandler);
     await this.displayTakeTrick(app);
@@ -525,3 +595,58 @@ export class GameEventHandler {
     this.isProcessing = false;
   }
 }
+
+class Pass {
+  constructor() {
+    this.cards = [];
+  }
+
+  getCards() {
+    return this.cards;
+  }
+
+  containsCard(card) {
+    for (const c of this.cards) {
+      if (c.isTheSameAs(card)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  isEmpty() {
+    return this.cards.length === 0;
+  }
+
+  isComplete() {
+    return this.cards.length === 3;
+  }
+
+  addCard(card) {
+    if (!this.isComplete()) {
+      this.cards.push(card);
+    }
+  }
+
+  removeCard(card) {
+    this.cards = this.cards.filter(item => !item.isTheSameAs(card));
+  }
+
+}
+
+class StateCache {
+  constructor() {
+    this.pass = new Pass();
+  }
+
+  setPass(pass) {
+    this.pass = pass;
+  }
+
+  getPass() {
+    return this.pass;
+  }
+
+}
+
+const STATE_CACHE = new StateCache();
