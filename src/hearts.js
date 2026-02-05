@@ -216,26 +216,27 @@ export class RoundState {
   }
 
   displayHand(app) {
-    if (this.hand.length > 0) {
+    const pass = STATE_CACHE.getPass();
+    const cards = this.hand.filter(card => !pass.containsCard(card));
+    if (cards.length > 0) {
       // a bit of a hack - get a card to determine spacing/layout
-      const aSprite = this.hand.at(0).getSprite()
+      const aSprite = cards.at(0).getSprite()
       const cardWidth = aSprite.width;
       const cardHeight = aSprite.height;
-      const handWidth = this.hand.length * cardWidth / 2; // divide by 2 to overlap cards
+      const handWidth = cards.length * cardWidth / 2; // divide by 2 to overlap cards
       let x = (app.screen.width / 2) - (handWidth / 2);
-      const y = app.screen.height - cardHeight - 10;
-      for (const card of this.hand) {
-        if (!STATE_CACHE.getPass().containsCard(card)) {
-          const sprite = card.getSprite();
-          sprite.eventMode = "passive";
-          sprite.position.set(x, y);
-          sprite.rotation = 0;
-          if (app.stage.children.indexOf(sprite) < 0) {
-            console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
-            app.stage.addChild(sprite);
-          }
-          x = x + (cardWidth / 2);
+      const y = app.screen.height - (cardHeight / 1.5);
+      const eventMode = this.getHandEventMode();
+      for (const card of cards) {
+        const sprite = card.getSprite();
+        sprite.eventMode = eventMode;
+        sprite.position.set(x, y);
+        sprite.rotation = 0;
+        if (app.stage.children.indexOf(sprite) < 0) {
+          console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
+          app.stage.addChild(sprite);
         }
+        x = x + (cardWidth / 2);
       }
     }
   }
@@ -285,6 +286,14 @@ export class RoundState {
     return this.hasTrick() && this.trick.isComplete();
   }
 
+  getHandEventMode() {
+    if (this.isPassPending()) {
+      return "static";
+    } else {
+      return "passive";
+    }
+  }
+
   hookMove(app, eventHandler) {
     if (this.isPassPending()) {
       this.hookPass(app, eventHandler);
@@ -326,6 +335,7 @@ export class RoundState {
           console.log(`Add to pass ${sprite.card.suit} ${sprite.card.rank}`);
           pass.addCard(sprite.card);
           this.displayPass(app);
+          this.displayHand(app);
           if (pass.isComplete()) {
             eventHandler.sendMessage(new ClientRequest("pass", pass.getCards()));
             STATE_CACHE.setPass(new Pass());
@@ -424,8 +434,8 @@ export class GameState {
   }
 
   async updateStage(app, eventHandler) {
-    this.displayHand(app);
     this.displayPass(app);
+    this.displayHand(app);
     await this.displayTrick(app);
     this.round.hookMove(app, eventHandler);
     await this.displayTakeTrick(app);
