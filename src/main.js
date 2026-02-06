@@ -62,8 +62,9 @@ const openWebSocket = (url, eventHandler) => {
   // Append the application canvas to the document body
   document.getElementById("pixi-container").appendChild(app.canvas);
 
-  await SPRITE_POOL.initialize();
   const eventHandler = new GameEventHandler(app);
+  await SPRITE_POOL.initialize(app, eventHandler);
+
 
   openWebSocket(wsUrl + "/games/ws/hearts/" + gameId, eventHandler);
 

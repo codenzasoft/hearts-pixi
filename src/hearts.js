@@ -310,38 +310,22 @@ export class RoundState {
     for (const card of this.hand) {
       const sprite = card.getSprite();
       if (this.trick.isValidPlay(card)) {
+        console.log(`Card ${card.rank} ${card.suit} is VALID`)
+        sprite.setMove(Moves.PLAY);
         sprite.eventMode = "static";
-        sprite.on("pointerdown", (event) => {
-          console.log(`Play ${sprite.card.suit} ${sprite.card.rank}`);
-          eventHandler.sendMessage(new ClientRequest("play", [card]))
-        });
       } else {
+        console.log(`Card ${card.rank} ${card.suit} is INVALID`)
+        sprite.setMove(Moves.NONE);
         sprite.eventMode = "passive";
       }
     }
   }
 
   hookPass(app, eventHandler) {
-    let pass = STATE_CACHE.getPass();
     for (const card of this.hand) {
+      card.getSprite().setMove(Moves.PASS);
       const sprite = card.getSprite();
       sprite.eventMode = "static";
-      sprite.on("pointerdown", (event) => {
-        if (pass.containsCard(card)) {
-          console.log(`Remove from pass ${sprite.card.suit} ${sprite.card.rank}`);
-          pass.removeCard(card);
-          this.displayHand(app);
-        } else {
-          console.log(`Add to pass ${sprite.card.suit} ${sprite.card.rank}`);
-          pass.addCard(sprite.card);
-          this.displayPass(app);
-          this.displayHand(app);
-          if (pass.isComplete()) {
-            eventHandler.sendMessage(new ClientRequest("pass", pass.getCards()));
-            STATE_CACHE.setPass(new Pass());
-          }
-        }
-      });
     }
   }
 }
@@ -465,10 +449,48 @@ const Ranks = Object.freeze({
   ACE: "ACE",
 });
 
+const Moves = Object.freeze({
+  PLAY: "play",
+  PASS: "pass",
+  NONE: "none",
+});
+
 export class Card {
   constructor(rank, suit) {
     this.rank = rank;
     this.suit = suit;
+  }
+
+  handleMove(app, eventHandler, roundState) {
+    switch (this.getSprite().getMove()) {
+      case Moves.PLAY:
+        eventHandler.sendMessage(new ClientRequest("play", [this]));
+        break;
+      case Moves.PASS:
+        const pass = STATE_CACHE.getPass();
+        if (pass.containsCard(this)) {
+          console.log(`Remove from pass ${this.suit} ${this.rank}`);
+          pass.removeCard(this);
+          eventHandler.getEvent().displayHand(app);
+        } else {
+          console.log(`Add to pass ${this.suit} ${this.rank}`);
+          pass.addCard(this);
+          eventHandler.getEvent().displayPass(app);
+          eventHandler.getEvent().displayHand(app);
+          if (pass.isComplete()) {
+            eventHandler.sendMessage(new ClientRequest("pass", pass.getCards()));
+            for (const card of pass.getCards()) {
+              app.stage.removeChild(card.getSprite);
+            }
+            STATE_CACHE.setPass(new Pass());
+            // TODO: remove pass from the stage
+          }
+        }
+        break;
+      default:
+        console.log(`Unsupported move: ${this.getSprite().getMove()}`);
+        break;
+    }
   }
 
   isTheSameAs(card) {
@@ -536,6 +558,19 @@ export class CardSprite extends Sprite {
   constructor(texture, card) {
     super(texture);
     this.card = card;
+    this.move = Moves.NONE;
+  }
+
+  getCard() {
+    return this.card;
+  }
+
+  setMove(move) {
+    this.move = move;
+  }
+
+  getMove() {
+    return this.move;
   }
 }
 
@@ -544,13 +579,19 @@ export class SpritePool {
     this.pool = new Map();
   }
 
-  async initialize() {
+  async initialize(app, eventHandler) {
     for (const suit of Object.values(Suits)) {
       for (const rank of Object.values(Ranks)) {
         const card = new Card(rank, suit);
         Assets.load(card.getSvgPath())
           .then((texture) => new CardSprite(texture, card))
-          .then((sprite) => this.addSprite(card.getSvgPath(), sprite));
+          .then((sprite) => {
+            this.addSprite(card.getSvgPath(), sprite);
+            sprite.on("pointerdown", (event) => {
+              console.log(`Click ${sprite.card.suit} ${sprite.card.rank}`);
+              card.handleMove(app, eventHandler);
+            });
+          });
       }
     }
   }
@@ -582,6 +623,7 @@ export class GameEventHandler {
     this.eventQueue = [];
     this.isProcessing = false;
     this.websocket = null;
+    this.event = null;
   }
 
   setWebsocket(socket) {
@@ -599,11 +641,17 @@ export class GameEventHandler {
 
     while (this.eventQueue.length > 0) {
       const event = this.eventQueue.shift();
+      this.event = event;
       await event.updateStage(this.app, this); // Process one by one
     }
 
     this.isProcessing = false;
   }
+
+  getEvent() {
+    return this.event;
+  }
+
 }
 
 class Pass {
