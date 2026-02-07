@@ -1,4 +1,4 @@
-import { Application } from "pixi.js";
+import {Application, Text} from "pixi.js";
 import { GameEventHandler, GameState, SPRITE_POOL } from "./hearts.js";
 
 const wsUrl = import.meta.env.VITE_WS_URL;
@@ -64,7 +64,6 @@ const openWebSocket = (url, eventHandler) => {
 
   const eventHandler = new GameEventHandler(app);
   await SPRITE_POOL.initialize(app, eventHandler);
-
 
   openWebSocket(wsUrl + "/games/ws/hearts/" + gameId, eventHandler);
 

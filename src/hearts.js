@@ -1,4 +1,4 @@
-import { Assets, Point, Sprite } from "pixi.js";
+import {Assets, Point, Sprite, Text} from "pixi.js";
 
 const imgUrlRoot = import.meta.env.VITE_IMAGE_URL_ROOT;
 
@@ -7,6 +7,11 @@ export class Player {
     this.name = name;
     this.isBot = isBot;
   }
+
+  getSprite() {
+    return SPRITE_POOL.getSprite(this.name);
+  }
+
 }
 
 const Directions = Object.freeze({
@@ -387,15 +392,54 @@ export class GameState {
     );
     // this gets a little ugly...
     let players = new Map();
-    players.set("KEEPER", this.getPlayer(jsonData.players.KEEPER));
-    players.set("LEFT", this.getPlayer(jsonData.players.LEFT));
-    players.set("ACROSS", this.getPlayer(jsonData.players.ACROSS));
-    players.set("RIGHT", this.getPlayer(jsonData.players.RIGHT));
+    players.set(Directions.KEEPER, this.buildPlayer(jsonData.players.KEEPER));
+    players.set(Directions.LEFT, this.buildPlayer(jsonData.players.LEFT));
+    players.set(Directions.ACROSS, this.buildPlayer(jsonData.players.ACROSS));
+    players.set(Directions.RIGHT, this.buildPlayer(jsonData.players.RIGHT));
     return new GameState(jsonData.id, players, jsonData.over, round);
   }
 
-  static getPlayer(jsonData) {
+  static buildPlayer(jsonData) {
     return new Player(jsonData.name, jsonData.isBot);
+  }
+
+  getPlayer(direction) {
+    return this.players.get(direction);
+  }
+
+  displayPlayers(app) {
+    this.players.forEach((player, direction, map) => {
+      let sprite = SPRITE_POOL.getSprite(player.name);
+      if (sprite === undefined) {
+        sprite = new Text({
+          text: player.name,
+          style: {
+            fontFamily: 'Arial',
+            fontSize: 32,
+            fill: 'white',
+          }
+        });
+        SPRITE_POOL.addSprite(player.name, sprite);
+        const position = this.getPlayerPosition(app, direction, sprite);
+        sprite.position.set(position.x, position.y);
+        app.stage.addChild(sprite);
+      }
+    });
+  }
+
+  getPlayerPosition(app, direction, sprite) {
+    switch (direction) {
+      case Directions.ACROSS:
+        return new Point(app.screen.width / 2, sprite.height / 2);
+      case Directions.RIGHT:
+        return new Point( app.screen.width - (sprite.width / 2), app.screen.height / 2);
+      case Directions.KEEPER:
+        return new Point(app.screen.width / 2, app.screen.height - (sprite.height / 2));
+      case Directions.LEFT:
+        return new Point(sprite.width / 2, app.screen.height / 2);
+      default:
+        return new Point(0,0);
+    }
   }
 
   displayHand(app) {
@@ -418,6 +462,7 @@ export class GameState {
   }
 
   async updateStage(app, eventHandler) {
+    this.displayPlayers(app);
     this.displayPass(app);
     this.displayHand(app);
     await this.displayTrick(app);
@@ -480,7 +525,7 @@ export class Card {
           if (pass.isComplete()) {
             eventHandler.sendMessage(new ClientRequest("pass", pass.getCards()));
             for (const card of pass.getCards()) {
-              app.stage.removeChild(card.getSprite);
+              app.stage.removeChild(card.getSprite());
             }
             STATE_CACHE.setPass(new Pass());
             // TODO: remove pass from the stage
