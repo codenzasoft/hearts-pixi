@@ -1,4 +1,5 @@
 import {Assets, Point, Sprite, Text} from "pixi.js";
+import js from "@eslint/js";
 
 const imgUrlRoot = import.meta.env.VITE_IMAGE_URL_ROOT;
 
@@ -90,6 +91,7 @@ export class TrickState {
     }
     const destination = this.getDestination(direction, app);
     const speed = 10;
+    const rotation = sprite.rotation + Math.PI;
 
     sprite.position.set(origin.x, origin.y);
     sprite.rotation = 0;
@@ -100,7 +102,7 @@ export class TrickState {
 
     return new Promise((resolve) => {
       const animation = (ticker) => {
-        const complete = this.moveSpriteTowards(sprite, destination, ticker, speed);
+        const complete = this.moveSpriteTowards(sprite, destination, rotation, ticker, speed);
         if (complete) {
           app.ticker.remove(animation);
           resolve(card);
@@ -110,17 +112,17 @@ export class TrickState {
     });
   }
 
-  moveSpriteTowards(sprite, destination, ticker, speed) {
+  moveSpriteTowards(sprite, destination, rotation, ticker, speed) {
     // Calculate the distance to the destination
     const dx = destination.x - sprite.position.x;
     const dy = destination.y - sprite.position.y;
-    const dr = Math.PI - sprite.rotation;
+    const dr = rotation - sprite.rotation;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     // If the object is close enough to the target, stop moving
     if (distance < speed * ticker.deltaTime) {
       sprite.position.set(destination.x, destination.y);
-      sprite.rotation = Math.PI;
+      sprite.rotation = rotation;
       return true;
     } else {
       // Calculate the movement amount for this frame
@@ -189,13 +191,15 @@ export class TrickState {
 
   async displayTakeTrick(app) {
     const direction = this.winner;
-    const destination = this.getOrigin(direction, app)
+    const destination = this.getOrigin(direction, app);
+    const rotation = this.cards[0].getSprite().rotation - Math.PI;
 
     return new Promise((resolve) => {
       const animation = (ticker) => {
         let complete = true;
         for (const card of this.cards) {
-          complete = this.moveSpriteTowards(card.getSprite(), destination, ticker, 10) && complete;
+          const sprite = card.getSprite();
+          complete = this.moveSpriteTowards(sprite, destination, rotation, ticker, 10) && complete;
         }
         if (complete) {
           for (const card of this.cards) {
@@ -212,12 +216,13 @@ export class TrickState {
 }
 
 export class RoundState {
-  constructor(roundNumber, passDirection, passPending, trick, hand) {
+  constructor(roundNumber, passDirection, passPending, trick, hand, score) {
     this.roundNumner = roundNumber;
     this.passDirection = passDirection;
     this.passPending = passPending;
     this.trick = trick;
     this.hand = hand;
+    this.score = score;
   }
 
   displayHand(app) {
@@ -383,12 +388,18 @@ export class GameState {
     if (jsonRound.passPending !== undefined) {
       passPending = jsonRound.passPending;
     }
+    let score = new Map();
+    score.set(Directions.KEEPER, jsonRound.score.KEEPER);
+    score.set(Directions.LEFT, jsonRound.score.LEFT);
+    score.set(Directions.ACROSS, jsonRound.score.ACROSS);
+    score.set(Directions.RIGHT, jsonRound.score.RIGHT);
     let round = new RoundState(
       jsonRound.number,
       jsonRound.passDirection,
       passPending,
       trick,
       hand,
+      score,
     );
     // this gets a little ugly...
     let players = new Map();
@@ -396,6 +407,7 @@ export class GameState {
     players.set(Directions.LEFT, this.buildPlayer(jsonData.players.LEFT));
     players.set(Directions.ACROSS, this.buildPlayer(jsonData.players.ACROSS));
     players.set(Directions.RIGHT, this.buildPlayer(jsonData.players.RIGHT));
+
     return new GameState(jsonData.id, players, jsonData.over, round);
   }
 
@@ -412,7 +424,7 @@ export class GameState {
       let sprite = SPRITE_POOL.getSprite(player.name);
       if (sprite === undefined) {
         sprite = new Text({
-          text: player.name,
+          text: player.name + ` (${this.getRoundScore(direction)})` ,
           style: {
             fontFamily: 'Arial',
             fontSize: 32,
@@ -423,8 +435,14 @@ export class GameState {
         const position = this.getPlayerPosition(app, direction, sprite);
         sprite.position.set(position.x, position.y);
         app.stage.addChild(sprite);
+      } else {
+        sprite.text = player.name + ` (${this.getRoundScore(direction)})`;
       }
     });
+  }
+
+  getRoundScore(direction) {
+    return this.round.score.get(direction);
   }
 
   getPlayerPosition(app, direction, sprite) {
@@ -447,6 +465,26 @@ export class GameState {
   }
 
   displayPass(app) {
+    let sprite = SPRITE_POOL.getSprite("pass");
+    if (this.round.isPassPending()) {
+      if (sprite === undefined) {
+        sprite = new Text({
+          text: `Pass ${this.round.passDirection}`,
+          style: {
+            fontFamily: 'Arial',
+            fontSize: 32,
+            fill: 'white',
+          }
+        });
+        sprite.position.set(50, 20);
+        SPRITE_POOL.addSprite("pass", sprite);
+        app.stage.addChild(sprite);
+      }
+    } else {
+      if (sprite !== null) {
+        app.stage.removeChild(sprite);
+      }
+    }
     const pass = STATE_CACHE.getPass();
     if (!pass.isEmpty()) {
       this.round.displayPass(app);
@@ -462,12 +500,12 @@ export class GameState {
   }
 
   async updateStage(app, eventHandler) {
-    this.displayPlayers(app);
     this.displayPass(app);
     this.displayHand(app);
     await this.displayTrick(app);
     this.round.hookMove(app, eventHandler);
     await this.displayTakeTrick(app);
+    this.displayPlayers(app);
   }
 }
 
@@ -642,8 +680,10 @@ export class SpritePool {
   }
 
   addSprite(key, sprite) {
-    sprite.scale.set(0.5);
-    sprite.anchor.set(0.5);
+    if (sprite.card !== null) {
+      sprite.scale.set(0.5);
+      sprite.anchor.set(0.5);
+    }
     this.pool.set(key, sprite);
   }
 
