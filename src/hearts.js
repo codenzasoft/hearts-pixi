@@ -84,17 +84,20 @@ export class TrickState {
   displayPlayedCard(app, card, direction) {
     const sprite = card.getSprite();
     let origin;
+    let startingR;
     if (sprite.parent === null) {
       origin = this.getOrigin(direction, app);
+      startingR = this.getStartingRotation(direction);
     } else {
       origin = new Point(sprite.position.x, sprite.position.y);
+      startingR = sprite.rotation;
     }
     const destination = this.getDestination(direction, app);
     const speed = 10;
-    const rotation = sprite.rotation + Math.PI;
+    const endingR = startingR + Math.PI;
 
     sprite.position.set(origin.x, origin.y);
-    sprite.rotation = 0;
+    sprite.rotation = startingR;
     if (app.stage.children.indexOf(sprite) < 0) {
       console.log(`adding ${card.rank} ${card.suit} (from playCard)`);
       app.stage.addChild(sprite);
@@ -102,7 +105,7 @@ export class TrickState {
 
     return new Promise((resolve) => {
       const animation = (ticker) => {
-        const complete = this.moveSpriteTowards(sprite, destination, rotation, ticker, speed);
+        const complete = this.moveSpriteTowards(sprite, destination, endingR, ticker, speed);
         if (complete) {
           app.ticker.remove(animation);
           resolve(card);
@@ -113,6 +116,10 @@ export class TrickState {
   }
 
   moveSpriteTowards(sprite, destination, rotation, ticker, speed) {
+    if (destination.x === sprite.position.x && destination.y === sprite.position.y) {
+      return true;
+    }
+
     // Calculate the distance to the destination
     const dx = destination.x - sprite.position.x;
     const dy = destination.y - sprite.position.y;
@@ -158,6 +165,21 @@ export class TrickState {
         return new Point(app.screen.width, app.screen.height / 2);
       default:
         return new Point(0, 0);
+    }
+  }
+
+  getStartingRotation(direction, app) {
+    switch (direction) {
+      case Directions.KEEPER:
+        return 0;
+      case Directions.LEFT:
+        return 0.5 * Math.PI;
+      case Directions.ACROSS:
+        return Math.PI;
+      case Directions.RIGHT:
+        return (2 * Math.PI) - (0.5 * Math.PI);
+      default:
+        return 0;
     }
   }
 
