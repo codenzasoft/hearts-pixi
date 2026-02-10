@@ -214,15 +214,18 @@ export class TrickState {
   async displayTakeTrick(app) {
     const direction = this.winner;
     const destination = this.getOrigin(direction, app);
-    const rotation = this.cards[0].getSprite().rotation - Math.PI;
+    const endingR = []
+    this.cards.forEach((card, index) => {
+      endingR[index] = card.getSprite().rotation - Math.PI;
+    });
 
     return new Promise((resolve) => {
       const animation = (ticker) => {
         let complete = true;
-        for (const card of this.cards) {
+        this.cards.forEach((card, index) => {
           const sprite = card.getSprite();
-          complete = this.moveSpriteTowards(sprite, destination, rotation, ticker, 10) && complete;
-        }
+          complete = this.moveSpriteTowards(sprite, destination, endingR[index], ticker, 10) && complete;
+        });
         if (complete) {
           for (const card of this.cards) {
             console.log(`removing ${card.rank} ${card.suit} (from takeTrick)`);
