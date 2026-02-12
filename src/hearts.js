@@ -366,10 +366,11 @@ export class RoundState {
 }
 
 export class GameState {
-  constructor(id, players, over, round) {
+  constructor(id, players, over, score, round) {
     this.id = id;
     this.players = players;
     this.over = over;
+    this.score = score;
     this.round = round;
   }
 
@@ -433,7 +434,13 @@ export class GameState {
     players.set(Directions.ACROSS, this.buildPlayer(jsonData.players.ACROSS));
     players.set(Directions.RIGHT, this.buildPlayer(jsonData.players.RIGHT));
 
-    return new GameState(jsonData.id, players, jsonData.over, round);
+    let roundScores = new Map();
+    roundScores.set(Directions.KEEPER, jsonData.score.KEEPER);
+    roundScores.set(Directions.LEFT, jsonData.score.LEFT);
+    roundScores.set(Directions.ACROSS, jsonData.score.ACROSS);
+    roundScores.set(Directions.RIGHT, jsonData.score.RIGHT);
+
+    return new GameState(jsonData.id, players, jsonData.over, roundScores, round);
   }
 
   static buildPlayer(jsonData) {
