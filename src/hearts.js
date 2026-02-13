@@ -456,10 +456,10 @@ export class GameState {
       let sprite = SPRITE_POOL.getSprite(player.name);
       if (sprite === undefined) {
         sprite = new Text({
-          text: player.name + ` (${this.getTotalScore(direction)} / ${this.getRoundScore(direction)})` ,
+          text: player.name + ` (${this.getRoundScore(direction)})` ,
           style: {
             fontFamily: 'Arial',
-            fontSize: 32,
+            fontSize: 48,
             fill: 'white',
           }
         });
@@ -468,7 +468,7 @@ export class GameState {
         sprite.position.set(position.x, position.y);
         app.stage.addChild(sprite);
       } else {
-        sprite.text = player.name + ` (${this.getTotalScore(direction)} / ${this.getRoundScore(direction)})`;
+        sprite.text = player.name + ` (${this.getRoundScore(direction)})`;
       }
     });
   }
@@ -505,14 +505,15 @@ export class GameState {
     if (this.round.isPassPending()) {
       if (sprite === undefined) {
         sprite = new Text({
-          text: `Pass ${this.round.passDirection}`,
+          text: `pass ${this.round.passDirection.toLowerCase()}`,
           style: {
             fontFamily: 'Arial',
-            fontSize: 32,
+            fontSize: 128,
             fill: 'white',
           }
         });
-        sprite.position.set(50, 20);
+        sprite.anchor.set(0.5);
+        sprite.position.set(app.screen.width / 2, app.screen.height / 3);
         SPRITE_POOL.addSprite("pass", sprite);
         app.stage.addChild(sprite);
       }
