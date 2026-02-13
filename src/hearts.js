@@ -456,7 +456,7 @@ export class GameState {
       let sprite = SPRITE_POOL.getSprite(player.name);
       if (sprite === undefined) {
         sprite = new Text({
-          text: player.name + ` (${this.getRoundScore(direction)})` ,
+          text: player.name + ` (${this.getTotalScore(direction)} / ${this.getRoundScore(direction)})` ,
           style: {
             fontFamily: 'Arial',
             fontSize: 32,
@@ -468,9 +468,13 @@ export class GameState {
         sprite.position.set(position.x, position.y);
         app.stage.addChild(sprite);
       } else {
-        sprite.text = player.name + ` (${this.getRoundScore(direction)})`;
+        sprite.text = player.name + ` (${this.getTotalScore(direction)} / ${this.getRoundScore(direction)})`;
       }
     });
+  }
+
+  getTotalScore(direction) {
+    return this.score.get(direction).reduce((acc, currentValue) => acc + currentValue, 0);
   }
 
   getRoundScore(direction) {
