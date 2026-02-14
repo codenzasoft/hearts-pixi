@@ -568,6 +568,30 @@ export class GameState {
     }
   }
 
+  displayGameOVer(app) {
+    let sprite = SPRITE_POOL.getSprite("game-over");
+    if (this.over) {
+      if (sprite === undefined) {
+        sprite = new Text({
+          text: "game over",
+          style: {
+            fontFamily: "Arial",
+            fontSize: 128,
+            fill: "white",
+          },
+        });
+        sprite.anchor.set(0.5);
+        sprite.position.set(app.screen.width / 2, app.screen.height / 2);
+        SPRITE_POOL.addSprite("game-over", sprite);
+        app.stage.addChild(sprite);
+      }
+    } else {
+      if (sprite !== null) {
+        app.stage.removeChild(sprite);
+      }
+    }
+  }
+
   displayHand(app) {
     this.round.displayHand(app);
   }
@@ -616,6 +640,7 @@ export class GameState {
     await this.displayTakeTrick(app);
     this.displayPlayers(app);
     this.updateScoreBoard(app);
+    this.displayGameOVer(app);
   }
 }
 
