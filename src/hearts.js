@@ -265,10 +265,9 @@ export class RoundState {
     const pass = STATE_CACHE.getPass();
     const cards = this.hand.filter((card) => !pass.containsCard(card));
     if (cards.length > 0) {
-      // a bit of a hack - get a card to determine spacing/layout
-      const aSprite = cards.at(0).getSprite();
-      const cardWidth = aSprite.width;
-      const cardHeight = aSprite.height;
+      const cardSize = SPRITE_POOL.getCardSize();
+      const cardWidth = cardSize.x;
+      const cardHeight = cardSize.y;
       const handWidth = (cards.length * cardWidth) / 2; // divide by 2 to overlap cards
       let x = app.screen.width / 2 - handWidth / 2;
       const y = app.screen.height - cardHeight / 1.5;
@@ -296,11 +295,9 @@ export class RoundState {
   async displayPass(app) {
     const pass = STATE_CACHE.getPass();
     if (!pass.isEmpty()) {
-      // a bit of a hack - get a card to determine spacing/layout
-      const aSprite = pass.getCards().at(0).getSprite();
-      const cardWidth = aSprite.width;
+      const cardWidth = SPRITE_POOL.getCardSize().x;
       const space = cardWidth / 4;
-      const numCards = pass.getCards().length;
+      const numCards = 3; // pass.getCards().length;
       const passWidth = numCards * cardWidth + (numCards - 1) * space;
       let x = app.screen.width / 2 - passWidth / 2;
       const y = app.screen.height / 2;
@@ -309,10 +306,11 @@ export class RoundState {
         sprite.eventMode = "static";
         sprite.position.set(x, y);
         sprite.rotation = 0;
-        if (app.stage.children.indexOf(sprite) < 0) {
-          console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
-          app.stage.addChild(sprite);
-        }
+        // should not need to add card - should be visible
+        // if (app.stage.children.indexOf(sprite) < 0) {
+        //   console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
+        //   app.stage.addChild(sprite);
+        // }
         x = x + cardWidth + space;
       }
     }
@@ -475,7 +473,7 @@ export class GameState {
         text: this.buildTable(),
         style: {
           fontFamily: "Arial",
-          fontSize: 36,
+          fontSize: 28,
           fill: "white",
         },
       });
@@ -494,7 +492,14 @@ export class GameState {
       table += this.buildTableRow(direction);
     });
     table += "</table>";
-    return table;
+    let style = "<style>\n" +
+        "  th, td {\n" +
+        "    border: 1px solid white; \n" +
+        "    padding: 8px; \n" +
+        "    text-align: right; \n" +
+        "  }\n" +
+        "</style>";
+    return table + style;
   }
 
   buildTableRow(direction) {
@@ -784,6 +789,12 @@ export class SpritePool {
           });
       }
     }
+  }
+
+  getCardSize() {
+    const card = new Card(Ranks.ACE, Suits.HEARTS);
+    const sprite = card.getSprite();
+    return new Point(sprite.width, sprite.height);
   }
 
   addSprite(key, sprite) {
