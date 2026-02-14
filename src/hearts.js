@@ -1,4 +1,4 @@
-import {Assets, Point, Sprite, Text} from "pixi.js";
+import {Assets, HTMLText, Point, Sprite, Text} from "pixi.js";
 import js from "@eslint/js";
 
 const imgUrlRoot = import.meta.env.VITE_IMAGE_URL_ROOT;
@@ -451,6 +451,48 @@ export class GameState {
     return this.players.get(direction);
   }
 
+  updateScoreBoard(app) {
+    let sprite = SPRITE_POOL.getSprite("score-board");
+    if (sprite === undefined) {
+      sprite = new HTMLText({
+        text: this.buildTable(),
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 36,
+          fill: 'white',
+        }
+      });
+      SPRITE_POOL.addSprite("score-board", sprite);
+      sprite.anchor.set(0);
+      sprite.position.set(0,0);
+      app.stage.addChild(sprite);
+    } else {
+      sprite.text = this.buildTable();
+    }
+  }
+
+  buildTable() {
+    let table = "<table>";
+    this.players.forEach((player, direction, map) => {
+      table += this.buildTableRow(direction);
+    });
+    table += "</table>";
+    return table;
+  }
+
+  buildTableRow(direction) {
+    let row = "<tr>";
+    const player = this.getPlayer(direction);
+    row += `<th>${player.name}</th>`;
+    const scores = this.score.get(direction);
+    const total = scores.reduce((acc, currentValue) => acc + currentValue, 0);
+    for (const score of scores) {
+      row += `<td>${score}</td>`;
+    }
+    row += `<th>${total}</th></tr>`
+    return row;
+  }
+
   displayPlayers(app) {
     this.players.forEach((player, direction, map) => {
       let sprite = SPRITE_POOL.getSprite(player.name);
@@ -543,6 +585,7 @@ export class GameState {
     this.round.hookMove(app, eventHandler);
     await this.displayTakeTrick(app);
     this.displayPlayers(app);
+    this.updateScoreBoard(app);
   }
 }
 
