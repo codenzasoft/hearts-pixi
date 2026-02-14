@@ -1,5 +1,4 @@
-import {Assets, HTMLText, Point, Sprite, Text} from "pixi.js";
-import js from "@eslint/js";
+import { Assets, HTMLText, Point, Sprite, Text } from "pixi.js";
 
 const imgUrlRoot = import.meta.env.VITE_IMAGE_URL_ROOT;
 
@@ -12,7 +11,6 @@ export class Player {
   getSprite() {
     return SPRITE_POOL.getSprite(this.name);
   }
-
 }
 
 const Directions = Object.freeze({
@@ -105,18 +103,27 @@ export class TrickState {
 
     return new Promise((resolve) => {
       const animation = (ticker) => {
-        const complete = this.moveSpriteTowards(sprite, destination, endingR, ticker, speed);
+        const complete = this.moveSpriteTowards(
+          sprite,
+          destination,
+          endingR,
+          ticker,
+          speed,
+        );
         if (complete) {
           app.ticker.remove(animation);
           resolve(card);
         }
-      }
+      };
       app.ticker.add(animation);
     });
   }
 
   moveSpriteTowards(sprite, destination, rotation, ticker, speed) {
-    if (destination.x === sprite.position.x && destination.y === sprite.position.y) {
+    if (
+      destination.x === sprite.position.x &&
+      destination.y === sprite.position.y
+    ) {
       return true;
     }
 
@@ -144,10 +151,7 @@ export class TrickState {
       const moveR = (dr / distance) * speed * ticker.deltaTime;
 
       // Update the object's position
-      sprite.position.set(
-          sprite.position.x + moveX,
-          sprite.position.y + moveY,
-      );
+      sprite.position.set(sprite.position.x + moveX, sprite.position.y + moveY);
       sprite.rotation += moveR;
       return false;
     }
@@ -168,7 +172,7 @@ export class TrickState {
     }
   }
 
-  getStartingRotation(direction, app) {
+  getStartingRotation(direction) {
     switch (direction) {
       case Directions.KEEPER:
         return 0;
@@ -177,7 +181,7 @@ export class TrickState {
       case Directions.ACROSS:
         return Math.PI;
       case Directions.RIGHT:
-        return (2 * Math.PI) - (0.5 * Math.PI);
+        return 2 * Math.PI - 0.5 * Math.PI;
       default:
         return 0;
     }
@@ -214,7 +218,7 @@ export class TrickState {
   async displayTakeTrick(app) {
     const direction = this.winner;
     const destination = this.getOrigin(direction, app);
-    const endingR = []
+    const endingR = [];
     this.cards.forEach((card, index) => {
       endingR[index] = card.getSprite().rotation - Math.PI;
     });
@@ -224,7 +228,14 @@ export class TrickState {
         let complete = true;
         this.cards.forEach((card, index) => {
           const sprite = card.getSprite();
-          complete = this.moveSpriteTowards(sprite, destination, endingR[index], ticker, 10) && complete;
+          complete =
+            this.moveSpriteTowards(
+              sprite,
+              destination,
+              endingR[index],
+              ticker,
+              10,
+            ) && complete;
         });
         if (complete) {
           for (const card of this.cards) {
@@ -234,7 +245,7 @@ export class TrickState {
           app.ticker.remove(animation);
           resolve(this.cards);
         }
-      }
+      };
       app.ticker.add(animation);
     });
   }
@@ -252,15 +263,15 @@ export class RoundState {
 
   displayHand(app) {
     const pass = STATE_CACHE.getPass();
-    const cards = this.hand.filter(card => !pass.containsCard(card));
+    const cards = this.hand.filter((card) => !pass.containsCard(card));
     if (cards.length > 0) {
       // a bit of a hack - get a card to determine spacing/layout
-      const aSprite = cards.at(0).getSprite()
+      const aSprite = cards.at(0).getSprite();
       const cardWidth = aSprite.width;
       const cardHeight = aSprite.height;
-      const handWidth = cards.length * cardWidth / 2; // divide by 2 to overlap cards
-      let x = (app.screen.width / 2) - (handWidth / 2);
-      const y = app.screen.height - (cardHeight / 1.5);
+      const handWidth = (cards.length * cardWidth) / 2; // divide by 2 to overlap cards
+      let x = app.screen.width / 2 - handWidth / 2;
+      const y = app.screen.height - cardHeight / 1.5;
       const eventMode = this.getHandEventMode();
       for (const card of cards) {
         const sprite = card.getSprite();
@@ -271,7 +282,7 @@ export class RoundState {
           console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
           app.stage.addChild(sprite);
         }
-        x = x + (cardWidth / 2);
+        x = x + cardWidth / 2;
       }
     }
   }
@@ -286,23 +297,23 @@ export class RoundState {
     const pass = STATE_CACHE.getPass();
     if (!pass.isEmpty()) {
       // a bit of a hack - get a card to determine spacing/layout
-      const aSprite = pass.getCards().at(0).getSprite()
+      const aSprite = pass.getCards().at(0).getSprite();
       const cardWidth = aSprite.width;
       const space = cardWidth / 4;
       const numCards = pass.getCards().length;
-      const passWidth = (numCards * cardWidth) + ((numCards - 1) * space);
-      let x = (app.screen.width / 2) - (passWidth / 2);
+      const passWidth = numCards * cardWidth + (numCards - 1) * space;
+      let x = app.screen.width / 2 - passWidth / 2;
       const y = app.screen.height / 2;
       for (const card of pass.getCards()) {
-          const sprite = card.getSprite();
-          sprite.eventMode = "static";
-          sprite.position.set(x, y);
-          sprite.rotation = 0;
-          if (app.stage.children.indexOf(sprite) < 0) {
-            console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
-            app.stage.addChild(sprite);
-          }
-          x = x + cardWidth + space;
+        const sprite = card.getSprite();
+        sprite.eventMode = "static";
+        sprite.position.set(x, y);
+        sprite.rotation = 0;
+        if (app.stage.children.indexOf(sprite) < 0) {
+          console.log(`adding ${card.rank} ${card.suit} (from displayHand)`);
+          app.stage.addChild(sprite);
+        }
+        x = x + cardWidth + space;
       }
     }
   }
@@ -329,11 +340,11 @@ export class RoundState {
     }
   }
 
-  hookMove(app, eventHandler) {
+  hookMove() {
     if (this.isPassPending()) {
-      this.hookPass(app, eventHandler);
+      this.hookPass();
     } else if (this.hasTrick()) {
-      this.hookPlay(app, eventHandler);
+      this.hookPlay();
     }
   }
 
@@ -341,22 +352,22 @@ export class RoundState {
     return this.passPending.indexOf(Directions.KEEPER) >= 0;
   }
 
-  hookPlay(app, eventHandler) {
+  hookPlay() {
     for (const card of this.hand) {
       const sprite = card.getSprite();
       if (this.trick.isValidPlay(card)) {
-        console.log(`Card ${card.rank} ${card.suit} is VALID`)
+        console.log(`Card ${card.rank} ${card.suit} is VALID`);
         sprite.setMove(Moves.PLAY);
         sprite.eventMode = "static";
       } else {
-        console.log(`Card ${card.rank} ${card.suit} is INVALID`)
+        console.log(`Card ${card.rank} ${card.suit} is INVALID`);
         sprite.setMove(Moves.NONE);
         sprite.eventMode = "passive";
       }
     }
   }
 
-  hookPass(app, eventHandler) {
+  hookPass() {
     for (const card of this.hand) {
       card.getSprite().setMove(Moves.PASS);
       const sprite = card.getSprite();
@@ -389,7 +400,7 @@ export class GameState {
       jsonTrick.cards.forEach((jsonCard) => {
         cards.push(new Card(jsonCard.rank, jsonCard.suit));
       });
-      let moves = []
+      let moves = [];
       if (jsonTrick.moves !== undefined) {
         jsonTrick.moves.forEach((jsonCard) => {
           moves.push(new Card(jsonCard.rank, jsonCard.suit));
@@ -440,7 +451,13 @@ export class GameState {
     roundScores.set(Directions.ACROSS, jsonData.score.ACROSS);
     roundScores.set(Directions.RIGHT, jsonData.score.RIGHT);
 
-    return new GameState(jsonData.id, players, jsonData.over, roundScores, round);
+    return new GameState(
+      jsonData.id,
+      players,
+      jsonData.over,
+      roundScores,
+      round,
+    );
   }
 
   static buildPlayer(jsonData) {
@@ -457,14 +474,14 @@ export class GameState {
       sprite = new HTMLText({
         text: this.buildTable(),
         style: {
-          fontFamily: 'Arial',
+          fontFamily: "Arial",
           fontSize: 36,
-          fill: 'white',
-        }
+          fill: "white",
+        },
       });
       SPRITE_POOL.addSprite("score-board", sprite);
       sprite.anchor.set(0);
-      sprite.position.set(0,0);
+      sprite.position.set(0, 0);
       app.stage.addChild(sprite);
     } else {
       sprite.text = this.buildTable();
@@ -473,7 +490,7 @@ export class GameState {
 
   buildTable() {
     let table = "<table>";
-    this.players.forEach((player, direction, map) => {
+    this.players.forEach((player, direction, _map) => {
       table += this.buildTableRow(direction);
     });
     table += "</table>";
@@ -489,21 +506,21 @@ export class GameState {
     for (const score of scores) {
       row += `<td>${score}</td>`;
     }
-    row += `<th>${total}</th></tr>`
+    row += `<th>${total}</th></tr>`;
     return row;
   }
 
   displayPlayers(app) {
-    this.players.forEach((player, direction, map) => {
+    this.players.forEach((player, direction, _map) => {
       let sprite = SPRITE_POOL.getSprite(player.name);
       if (sprite === undefined) {
         sprite = new Text({
-          text: player.name + ` (${this.getRoundScore(direction)})` ,
+          text: player.name + ` (${this.getRoundScore(direction)})`,
           style: {
-            fontFamily: 'Arial',
+            fontFamily: "Arial",
             fontSize: 48,
-            fill: 'white',
-          }
+            fill: "white",
+          },
         });
         SPRITE_POOL.addSprite(player.name, sprite);
         const position = this.getPlayerPosition(app, direction, sprite);
@@ -516,7 +533,9 @@ export class GameState {
   }
 
   getTotalScore(direction) {
-    return this.score.get(direction).reduce((acc, currentValue) => acc + currentValue, 0);
+    return this.score
+      .get(direction)
+      .reduce((acc, currentValue) => acc + currentValue, 0);
   }
 
   getRoundScore(direction) {
@@ -528,13 +547,19 @@ export class GameState {
       case Directions.ACROSS:
         return new Point(app.screen.width / 2, sprite.height / 2);
       case Directions.RIGHT:
-        return new Point( app.screen.width - (sprite.width / 2), app.screen.height / 2);
+        return new Point(
+          app.screen.width - sprite.width / 2,
+          app.screen.height / 2,
+        );
       case Directions.KEEPER:
-        return new Point(app.screen.width / 2, app.screen.height - (sprite.height / 2));
+        return new Point(
+          app.screen.width / 2,
+          app.screen.height - sprite.height / 2,
+        );
       case Directions.LEFT:
         return new Point(sprite.width / 2, app.screen.height / 2);
       default:
-        return new Point(0,0);
+        return new Point(0, 0);
     }
   }
 
@@ -549,10 +574,10 @@ export class GameState {
         sprite = new Text({
           text: `pass ${this.round.passDirection.toLowerCase()}`,
           style: {
-            fontFamily: 'Arial',
+            fontFamily: "Arial",
             fontSize: 128,
-            fill: 'white',
-          }
+            fill: "white",
+          },
         });
         sprite.anchor.set(0.5);
         sprite.position.set(app.screen.width / 2, app.screen.height / 3);
@@ -578,11 +603,11 @@ export class GameState {
     await this.round.displayTakeTrick(app);
   }
 
-  async updateStage(app, eventHandler) {
+  async updateStage(app) {
     this.displayPass(app);
     this.displayHand(app);
     await this.displayTrick(app);
-    this.round.hookMove(app, eventHandler);
+    this.round.hookMove();
     await this.displayTakeTrick(app);
     this.displayPlayers(app);
     this.updateScoreBoard(app);
@@ -624,13 +649,13 @@ export class Card {
     this.suit = suit;
   }
 
-  handleMove(app, eventHandler, roundState) {
+  handleMove(app, eventHandler) {
+    const pass = STATE_CACHE.getPass();
     switch (this.getSprite().getMove()) {
       case Moves.PLAY:
         eventHandler.sendMessage(new ClientRequest("play", [this]));
         break;
       case Moves.PASS:
-        const pass = STATE_CACHE.getPass();
         if (pass.containsCard(this)) {
           console.log(`Remove from pass ${this.suit} ${this.rank}`);
           pass.removeCard(this);
@@ -641,7 +666,9 @@ export class Card {
           eventHandler.getEvent().displayPass(app);
           eventHandler.getEvent().displayHand(app);
           if (pass.isComplete()) {
-            eventHandler.sendMessage(new ClientRequest("pass", pass.getCards()));
+            eventHandler.sendMessage(
+              new ClientRequest("pass", pass.getCards()),
+            );
             for (const card of pass.getCards()) {
               app.stage.removeChild(card.getSprite());
             }
@@ -750,7 +777,7 @@ export class SpritePool {
           .then((texture) => new CardSprite(texture, card))
           .then((sprite) => {
             this.addSprite(card.getSvgPath(), sprite);
-            sprite.on("pointerdown", (event) => {
+            sprite.on("pointerdown", (_event) => {
               console.log(`Click ${sprite.card.suit} ${sprite.card.rank}`);
               card.handleMove(app, eventHandler);
             });
@@ -779,7 +806,6 @@ class ClientRequest {
     this.type = type;
     this.cards = cards;
   }
-
 }
 
 export class GameEventHandler {
@@ -807,7 +833,7 @@ export class GameEventHandler {
     while (this.eventQueue.length > 0) {
       const event = this.eventQueue.shift();
       this.event = event;
-      await event.updateStage(this.app, this); // Process one by one
+      await event.updateStage(this.app); // Process one by one
     }
 
     this.isProcessing = false;
@@ -816,7 +842,6 @@ export class GameEventHandler {
   getEvent() {
     return this.event;
   }
-
 }
 
 class Pass {
@@ -852,9 +877,8 @@ class Pass {
   }
 
   removeCard(card) {
-    this.cards = this.cards.filter(item => !item.isTheSameAs(card));
+    this.cards = this.cards.filter((item) => !item.isTheSameAs(card));
   }
-
 }
 
 class StateCache {
@@ -869,7 +893,6 @@ class StateCache {
   getPass() {
     return this.pass;
   }
-
 }
 
 const STATE_CACHE = new StateCache();

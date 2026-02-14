@@ -1,4 +1,4 @@
-import {Application, Text} from "pixi.js";
+import { Application } from "pixi.js";
 import { GameEventHandler, GameState, SPRITE_POOL } from "./hearts.js";
 
 const wsUrl = import.meta.env.VITE_WS_URL;
